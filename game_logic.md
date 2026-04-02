@@ -4,7 +4,7 @@ Niniejszy dokument opisuje logikę matematyczną, atrybuty oraz zależności sys
 
 ---
 
-## 🏎️ 1. Model Zawodnika (Rider)
+## 1. Model Zawodnika (Rider)
 
 Atrybuty zawodnika są podzielone na trzy kluczowe sekcje. Wpływają one na prawdopodobieństwo sukcesu w różnych fazach biegu.
 
@@ -28,7 +28,7 @@ Atrybuty zawodnika są podzielone na trzy kluczowe sekcje. Wpływają one na pra
 
 ---
 
-## 🏗️ 2. Fazy Biegu i Wagi Atrybutów
+## 2. Fazy Biegu i Wagi Atrybutów
 
 Algorytm oblicza wynik każdego etapu wyścigu według schematu:
 **`Wynik Fazy = (Atrybut Kluczowy * 0.7) + (Atrybut Wspierający * 0.3)`**
@@ -44,7 +44,7 @@ Algorytm oblicza wynik każdego etapu wyścigu według schematu:
 
 ---
 
-## 🏟️ 3. Model Toru (Track)
+## 3. Model Toru (Track)
 
 Tory klasyfikujemy według dwóch osi: **Geometrii** oraz **Nawierzchni**.
 
@@ -60,7 +60,7 @@ Tory klasyfikujemy według dwóch osi: **Geometrii** oraz **Nawierzchni**.
 
 ---
 
-## 🛠️ 4. Model Tunera i Sprzętu
+## 4. Model Tunera i Sprzętu
 
 Silniki nie mają stałej mocy. Ich wydajność zależy od trendów rynkowych.
 
@@ -70,7 +70,7 @@ Silniki nie mają stałej mocy. Ich wydajność zależy od trendów rynkowych.
 
 ---
 
-## 📈 5. Główny Wzór Obliczeniowy
+## 5. Główny Wzór Obliczeniowy
 
 Każda kalkulacja w silniku opiera się na zasadzie "bezpiecznej klasy":
 
