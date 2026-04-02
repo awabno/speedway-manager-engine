@@ -1,64 +1,49 @@
 import random
 from typing import List, Dict
 
-def simulate_advanced_heat(riders_with_gates: List[Dict]):
-    """
-    riders_with_gates: Lista słowników [{'rider': Rider, 'gate': 1}, ...]
-    """
-    gate_modifiers = {
-        1: {"base": 1.06, "variance": 0.05},
-        2: {"base": 0.97, "variance": 0.05},
-        3: {"base": 0.94, "variance": 0.05},
-        4: {"base": 1.03, "variance": 0.05}
-    }
+def get_dynamic_skill(base_val: float, consistency: int) -> float:
+    """Imitacja rzutu kością: im niższa stabilność, tym większy rozrzut (Variance)."""
+    # Zakres błędu: dla Cons 100 -> +/- 2%, dla Cons 70 -> +/- 15%
+    variance_range = (100 - consistency) / 200.0 
+    multiplier = random.uniform(1.0 - variance_range, 1.0 + variance_range)
+    return base_val * multiplier
 
-    heat_results = []
-
+def simulate_event_based_heat(riders_with_gates: List[Dict], track_difficulty: float = 0.05):
+    """
+    track_difficulty: Proóg trudności wyprzedzania (0.05 = 5% przewagi wymagane)
+    """
+    # 1. FAZA: START (PUNKT KONTROLNY 1)
     for item in riders_with_gates:
         r = item['rider']
-        gate = item['gate']
+        gate_mod = 1.06 if item['gate'] == 1 else (0.94 if item['gate'] == 3 else 1.0) # uproszczenie testowe
         
-        # --- FAZA 1: START (Moment puszczenia sprzęgła) ---
-        # Mechanika Niespodzianki (RNG Pola)
-        gate_info = gate_modifiers[gate]
-        gate_rng = random.uniform(-gate_info["variance"], gate_info["variance"])
-        final_gate_mod = gate_info["base"] + gate_rng
-        
-        # Obliczenie Startu (Reflex + Tech) * Pole * Luck
-        start_attr = (r.reflex * 0.7 + r.start_tech * 0.3)
-        start_luck = random.uniform(0.98, 1.02)
-        # Wynik startu (czysty potencjał wyjścia spod taśmy)
-        start_total = start_attr * final_gate_mod * start_luck
+        # Obliczamy start z uwzględnieniem Consistency
+        raw_start = (r.reflex * 0.7 + r.start_tech * 0.3) * gate_mod
+        item['current_start_score'] = get_dynamic_skill(raw_start, r.consistency)
 
-        # --- FAZA 2: DYSTANS (Pogoń / Obrona) ---
-        # TrackRiding + Racecraft + Weight (Lżejszy weight = mniejsza kara, np. 1.00 to 1.0)
-        weight_impact = 1.05 - (r.weight - 1.0)
-        dist_attr = (r.track_riding * 0.7 + r.racecraft * 0.3) * weight_impact
-        dist_luck = random.uniform(0.95, 1.05)
-        dist_total = dist_attr * dist_luck
-
-        heat_results.append({
-            "name": r.name,
-            "gate": gate,
-            "gate_mod_final": round(final_gate_mod, 3),
-            "start_score": round(start_total, 2),
-            "dist_score": round(dist_total, 2),
-            "total_power": 0 # Obliczymy niżej pozycję
-        })
-
-    # Sortujemy po starcie, aby ustalić kto objął prowadzenie
-    start_order = sorted(heat_results, key=lambda x: x['start_score'], reverse=True)
+    # Ustalenie pozycji po 1. łuku
+    standings = sorted(riders_with_gates, key=lambda x: x['current_start_score'], reverse=True)
     
-    # --- LOGIKA WYPRZEDZANIA ---
-    # Lider startu ma przewagę. Każdy kolejny musi mieć DIST o 5% wyższy od lidera, by wyprzedzić.
-    final_order = []
-    lider_startu = start_order[0]
-    
-    for i, runner in enumerate(start_order):
-        # Jeśli nie jesteś liderem, Twój DIST musi pokonać DIST lidera + handicap pozycji
-        # (Uproszczona logika na potrzeby testu: silniejszy DIST sumuje się z pozycją startową)
-        # Finalna moc to: 40% Start + 60% Dystans
-        runner['total_power'] = (runner['start_score'] * 0.4) + (runner['dist_score'] * 0.6)
-        final_order.append(runner)
+    log = [f"START: P1: {standings[0]['rider'].name}, P2: {standings[1]['rider'].name}"]
 
-    return sorted(final_order, key=lambda x: x['total_power'], reverse=True)
+    # 2. FAZA: OKRĄŻENIA 2-4 (INTERAKCJA I BLOKOWANIE)
+    # Symulujemy 3 próby wyprzedzania (po jednej na okrążenie)
+    for lap in range(2, 5):
+        for i in range(len(standings) - 1, 0, -1): # Idziemy od końca stawki
+            attacker = standings[i]['rider']
+            defender = standings[i-1]['rider']
+            
+            # Obliczamy potencjał ataku (Racecraft + Dist) vs obrony (Composure + Dist)
+            attack_power = get_dynamic_skill(attacker.track_riding * 0.5 + attacker.racecraft * 0.5, attacker.consistency)
+            defense_power = get_dynamic_skill(defender.track_riding * 0.5 + defender.composure * 0.5, defender.consistency)
+            
+            # Mechanika blokowania: Atakujący musi przebić obronę + próg trudności toru
+            success_threshold = defense_power * (1.0 + track_difficulty)
+            
+            if attack_power > success_threshold:
+                log.append(f"OKR {lap}: {attacker.name} WYPRZEDZA {defender.name}!")
+                standings[i], standings[i-1] = standings[i-1], standings[i] # Zamiana miejsc
+            else:
+                log.append(f"OKR {lap}: {attacker.name} atakuje {defender.name} (ZABLOKOWANY)")
+
+    return standings, log
