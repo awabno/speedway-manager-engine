@@ -1,34 +1,43 @@
 import random
 from typing import List, Dict
+from src.models.rider import Rider
 
-def calculate_rider_performance(rider, gate_mod: float, track_mods: Dict[str, float]):
+def simulate_detailed_heat(riders: List[Rider], track_modifiers: Dict[str, float]):
     """
-    Nowy model: Spłaszczone różnice + RNG uzależnione od Consistency.
+    Główny silnik obliczeniowy biegu.
     """
-    # 1. Spłaszczanie bazy (Normalizacja)
-    # Zamiast 98 vs 78, robimy różnicę rzędu kilku punktów wokół średniej 80.
-    flattened_base = 80 + (rider.base_skill - 85) * 0.3 
-    
-    # 2. Obliczanie potencjału faz (Start i Dystans)
-    start_attr = (rider.reflex * 0.7 + rider.start_tech * 0.3) / 100
-    dist_attr = (rider.track_riding * 0.7 + rider.racecraft * 0.3) / 100
+    heat_report = []
 
-    # 3. Dynamiczne RNG oparte na Consistency
-    # Im wyższe consistency, tym mniejszy rozrzut (Zmarzlik: +/- 2, Przyjemski: +/- 8)
-    rng_range = (100 - rider.consistency) * 0.4
-    luck_factor = random.uniform(-rng_range, rng_range)
+    for r in riders:
+        # 1. Obliczenia bazowe (Stała klasa zawodnika)
+        base_power = r.base_skill * 0.8
+        var_pool = r.base_skill * 0.2
 
-    # 4. Wpływ Pola Startowego i Toru
-    # Pole startowe modyfikuje głównie fazę startu
-    start_score = (flattened_base * start_attr * gate_mod * track_mods.get("reflex", 1.0))
-    dist_score = (flattened_base * dist_attr * track_mods.get("track_riding", 1.0))
+        # 2. FAZA: START (Refleks 0.7 + Technika 0.3)
+        # Uwzględniamy wagę (lżejszy = bonus) i modyfikator toru
+        start_mod = track_modifiers.get("reflex", 1.0) * (1.1 - (r.weight - 1.0))
+        start_attr_avg = (r.reflex * 0.7 + r.start_tech * 0.3) / 100
+        start_luck = random.uniform(0.95, 1.05)
+        start_score = base_power + (var_pool * start_attr_avg * start_mod * start_luck)
 
-    # Wynik końcowy z dodanym pechem/szczęściem
-    final_total = (start_score * 0.4 + dist_score * 0.6) + luck_factor
+        # 3. FAZA: DYSTANS (Jazda 0.7 + Racecraft 0.3)
+        dist_mod = track_modifiers.get("track_riding", 1.0)
+        dist_attr_avg = (r.track_riding * 0.7 + r.racecraft * 0.3) / 100
+        dist_luck = random.uniform(0.92, 1.08)
+        dist_score = base_power + (var_pool * dist_attr_avg * dist_mod * dist_luck)
 
-    return {
-        "start": round(start_score, 2),
-        "dist": round(dist_score, 2),
-        "luck": round(luck_factor, 2),
-        "total": round(final_total, 2)
-    }
+        # 4. WYNIK KOŃCOWY (Wagi faz: Start 40%, Dystans 60%)
+        final_performance = (start_score * 0.4) + (dist_score * 0.6)
+
+        heat_report.append({
+            "name": r.name,
+            "base": round(base_power, 2),
+            "start": round(start_score, 2),
+            "dist": round(dist_score, 2),
+            "total": round(final_performance, 2),
+            "luck_start": round(start_luck, 2),
+            "luck_dist": round(dist_luck, 2)
+        })
+
+    # Zwracamy listę posortowaną od najlepszego wyniku
+    return sorted(heat_report, key=lambda x: x['total'], reverse=True)
